@@ -9,34 +9,30 @@ import akka.kernel.Bootable
 import java.lang.Boolean.getBoolean
 import java.net.URLClassLoader
 import java.util.jar.JarFile
+import com.lian.akkafsm.{Queue, SetTarget, Buncher}
+
 import scala.collection.immutable
 import scala.collection.JavaConverters._
 import java.io.File
 
 case object Start
 
-
-class HelloActor extends Actor {
-  val worldActor = context.actorOf(Props[WorldActor])
-
+class TestActor extends Actor {
   def receive = {
-    case Start => worldActor ! "Hello"
-    case message: String =>
-      println("Received message '%s'" format message)
+    case _ => println("testActor is called")
   }
 }
 
-class WorldActor extends Actor {
-  def receive = {
-    case message: String => sender ! (message.toUpperCase + " world!")
-  }
-}
 
 class HelloKernelBootable extends Bootable {
   val system = ActorSystem("hellokernel")
 
   def startup = {
-    system.actorOf(Props[HelloActor]) ! Start
+    val buncher = system.actorOf(Props(classOf[Buncher]))
+    val testActor = system.actorOf(Props(classOf[TestActor]))
+    buncher ! SetTarget(testActor)
+    buncher ! Queue(42)
+    buncher ! Queue(43)
   }
 
   def shutdown = {
