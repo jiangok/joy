@@ -4,3 +4,7 @@ web:
    - "25099:5099"
    - "20022:22"
    - "22480:2480"
+  mem_limit: 60m
+  cpu_shares: 512
+  volumes:
+   - /var/run/docker.sock:/home/docker.sock

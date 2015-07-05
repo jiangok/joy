@@ -26,26 +26,28 @@ object AkkaBuild extends Build {
 
     resolvers ++= Seq(
       "spray repo" at "http://repo.spray.io/",
-      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/"
+      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/",
+      Resolver.sonatypeRepo("snapshots")
     ),
 
     libraryDependencies ++= Seq(akka_actor, junit,
       slf4j, log4j2_slf4j, log4j2_core, log4j2_api,
-      akka_testkit, scalatest, leveldb, leveldbjni)
+      akka_testkit, scalatest, leveldb, leveldbjni, reactiveDocker)
   )
 
   val akka_actor = "com.typesafe.akka" %% "akka-actor" % "2.3.11"
   val akka_testkit = "com.typesafe.akka" %% "akka-testkit" % "2.3.11"
   val akka_persistence = "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.11"
   val junit = "junit" % "junit" % "4.12" % "test"
-  val slf4j = "org.slf4j" % "slf4j-api" % "1.7.12"
-  val log4j2_api = "org.apache.logging.log4j" % "log4j-api" % "2.3"
-  val log4j2_core = "org.apache.logging.log4j" % "log4j-core" % "2.3"
-  val log4j2_slf4j = "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.3"
+  val slf4j = "org.slf4j" % "slf4j-api" % "1.7.12" % "provided"
+  val log4j2_api = "org.apache.logging.log4j" % "log4j-api" % "2.3" % "provided"
+  val log4j2_core = "org.apache.logging.log4j" % "log4j-core" % "2.3" % "provided"
+  val log4j2_slf4j = "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.3" % "provided"
   val scalatest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val leveldb = "org.iq80.leveldb" % "leveldb" % "0.7"
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
-  
+  val reactiveDocker = "org.almoehi" %% "reactive-docker" % "0.1-SNAPSHOT"
+
   lazy val app = Project("app", file(".")).
     enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).
     settings(basicSettings: _*).
