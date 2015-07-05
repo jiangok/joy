@@ -1,10 +1,22 @@
-web:
+andrew:
   image: jiangok/fatapp:0.1-SNAPSHOT
   ports:
    - "25099:5099"
    - "20022:22"
    - "22480:2480"
   mem_limit: 60m
-  cpu_shares: 512
+  # https://github.com/docker/swarm/issues/475
+  # CPU shares is the number of CPUs rather than shares
+  #cpu_shares: 512
+  volumes:
+   - /var/run/docker.sock:/home/docker.sock
+
+elaine:
+  image: jiangok/fatapp:0.1-SNAPSHOT
+  ports:
+   - "25100:5099"
+   - "20023:22"
+   - "22481:2480"
+  mem_limit: 60m
   volumes:
    - /var/run/docker.sock:/home/docker.sock
