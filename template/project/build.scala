@@ -2,10 +2,18 @@ package akkatestkitProj
 
 import sbt._
 import sbt.Keys._
-
 import scala.collection.mutable.{Map}
 
+// for fat jar
+import sbtassembly.AssemblyKeys._
 
+import com.typesafe.sbt.SbtNativePackager.autoImport._
+import com.typesafe.sbt.packager.archetypes.JavaServerAppPackaging
+import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd, DockerPlugin}
+import com.typesafe.sbt.packager.docker.DockerPlugin.autoImport._
+import com.typesafe.sbt.packager.universal.UniversalPlugin
+import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
+import com.typesafe.sbt.packager.archetypes.JavaAppPackaging.autoImport._
 
 object AkkaBuild extends Build {
 
@@ -36,10 +44,12 @@ object AkkaBuild extends Build {
   val leveldb = "org.iq80.leveldb" % "leveldb" % "0.7"
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
   
-  lazy val root = Project("root", file(".")).
+  lazy val app = Project("app", file(".")).
     settings(basicSettings: _*).
     settings(
-      mainClass in (Compile,run) := Some("app")
+      mainClass in (Compile,run) := Some("app"),
+
+      assemblyJarName in assembly := "fatApp.jar"
     )
 }
 
