@@ -1,5 +1,7 @@
 package akkatestkitProj
 
+// to create docker - docker:publishLocal
+
 import sbt._
 import sbt.Keys._
 import scala.collection.mutable.{Map}
@@ -45,11 +47,68 @@ object AkkaBuild extends Build {
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
   
   lazy val app = Project("app", file(".")).
+    enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).
     settings(basicSettings: _*).
     settings(
-      mainClass in (Compile,run) := Some("app"),
+      assemblyJarName in assembly := "fatapp.jar",
 
-      assemblyJarName in assembly := "fatApp.jar"
+      // docker creation
+      packageName in Docker := "fatapp",
+      version in Docker := version.value,
+      dockerRepository := Some("jiangok"),
+      dockerCommands in Docker <<= dockerCommands dependsOn assembly,
+      dockerCommands := Seq(
+        // enable ssh
+        Cmd("FROM", "ubuntu:14.04"),
+        Cmd("MAINTAINER", "Lian Jiang <abc@gmail.com"),
+        ExecCmd("RUN", "apt-get", "update"),
+        ExecCmd("RUN", "apt-get", "install", "openssh-server", "-y"),
+        ExecCmd("RUN", "mkdir", "/var/run/sshd"),
+        Cmd("RUN", "echo 'root:root' | chpasswd"),
+        ExecCmd("RUN", "sed", "-i", "s/PermitRootLogin without-password/PermitRootLogin yes/", "/etc/ssh/sshd_config"),
+        Cmd("RUN", "sed 's@session\\s*required\\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd"),
+        ExecCmd("ENV", "NOTVISIBLE", "\"in users profile\""),
+        Cmd("RUN", "echo \"export VISIBLE=now\" >> /etc/profile"),
+        Cmd("EXPOSE", "22 5099"),
+
+        // install openjdk instead of oracle jdk to avoid license issue.
+        Cmd("RUN", "apt-get install -y openjdk-7-jre -y"),
+
+        // install curl
+        Cmd("RUN", "apt-get install curl libc6 libcurl3 zlib1g -y"),
+
+        Cmd("ADD", s"opt/docker/lib/FatDockerEntryPoint.sh /app/"),
+
+        // install service, base path of the src is ./can/target/docker/stage/
+        Cmd("ADD", s"opt/docker/lib/${(assemblyJarName in assembly).value} /app/"),
+
+        Cmd("CMD", "[\"/app/FatDockerEntryPoint.sh\"]")
+      ),
+
+      // removes all jar mappings in universal and appends the fat jar
+      mappings in Universal := {
+        // universalMappings: Seq[(File,String)]
+        val universalMappings = (mappings in Universal).value
+        println(s"universalMappings: $universalMappings, assemblyJarName: $assemblyJarName")
+        val fatJar = (assembly in Compile).value
+        println(s"fatJar: $fatJar")
+        // removing means filtering
+        val filtered = universalMappings filter {
+          case (file, name) => !name.endsWith(".jar")
+        }
+
+        // add the fat jar
+        val entryPointScript = new File("project/FatDockerEntryPoint.sh")
+        if (entryPointScript.exists() == false)
+          throw new IllegalArgumentException(s"$entryPointScript not exist! current folder: ${new File(".").getCanonicalPath()}")
+
+        filtered :+ (fatJar -> ("lib/" + fatJar.getName)) :+
+          (entryPointScript -> "lib/FatDockerEntryPoint.sh")
+
+      },
+
+      // the bash scripts classpath only needs the fat jar
+      scriptClasspath := Seq( (assemblyJarName in assembly).value )
     )
 }
 
