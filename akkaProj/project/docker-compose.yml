@@ -1,0 +1,6 @@
+web:
+  image: jiangok/fatapp:0.1-SNAPSHOT
+  ports:
+   - "25099:5099"
+   - "20022:22"
+   - "22480:2480"
