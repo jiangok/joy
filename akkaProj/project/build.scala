@@ -32,7 +32,7 @@ object AkkaBuild extends Build {
 
     libraryDependencies ++= Seq(akka_actor, junit,
       slf4j, log4j2_slf4j, log4j2_core, log4j2_api,
-      akka_testkit, scalatest, leveldb, leveldbjni, reactiveDocker)
+      akka_testkit, scalatest, leveldb, leveldbjni)
   )
 
   val akka_actor = "com.typesafe.akka" %% "akka-actor" % "2.3.11"
@@ -46,7 +46,6 @@ object AkkaBuild extends Build {
   val scalatest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val leveldb = "org.iq80.leveldb" % "leveldb" % "0.7"
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
-  val reactiveDocker = "org.almoehi" %% "reactive-docker" % "0.1-SNAPSHOT"
 
   lazy val app = Project("app", file(".")).
     enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).

@@ -1,9 +1,6 @@
 package com.lian.akka.pingpong
 
 import akka.actor.{Props, ActorSystem, FSM}
-import com.kolor.docker.api._
-import com.kolor.docker.api.json.Formats._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Created by lian on 6/30/15.
@@ -63,17 +60,4 @@ object PingpongApp extends App {
   //andrew ! "startGame"
 
   println("hi")
-
-  implicit val docker = Docker("https://192.168.59.103:2376")
-
-  val maybeImages = docker.images()
-  val maybeContainers = docker.containers()
-
-  for {
-    images <- maybeImages
-    containers <- maybeContainers
-  } yield {
-    images.map(i => println(s"Image: $i"))
-    containers.map(c => println(s"Container: $c"))
-  }
 }
