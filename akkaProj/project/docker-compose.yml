@@ -1,3 +1,8 @@
+# andrew and elaine containers are the same except the ports
+# this is not ideal. The ports should be dynamic mapped so
+# that I don't need to duplicate the container yml.
+# service discovery is needed to handle the dynamic ports.
+
 andrew:
   image: jiangok/fatapp:0.1-SNAPSHOT
   ports:

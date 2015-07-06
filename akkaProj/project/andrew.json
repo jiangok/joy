@@ -1,0 +1,18 @@
+{
+  "id": "andrew",
+  "cpus": 0.2,
+  "mem": 32.0,
+  "instances": 2,
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "jiangok/fatapp:0.1-SNAPSHOT",
+      "network": "BRIDGE",
+      "portMappings": [
+        { "containerPort": 5099 },
+        { "containerPort": 22 },
+        { "containerPort": 2480 }
+      ]
+    }
+  }
+}
