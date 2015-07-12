@@ -6,7 +6,7 @@ import java.io.File
 
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.stage.{SyncDirective, Context, StatefulStage}
+import akka.stream.stage.{PushPullStage, SyncDirective, Context, StatefulStage}
 import akka.util.ByteString
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import akka.actor.{ Actor, Props, ActorSystem, FSM }
@@ -34,7 +34,7 @@ class StreamSpec(_system: ActorSystem)
   }
 
   "Source.single" should "work with runForeach" in {
-    val future : Future[Unit] = Source.single(5).runForeach(i => print(i.toString()))
+    val future : Future[Unit] = Source.single(5).runForeach{i => }
 
     future onComplete({
         case Success(_) => assert(true)
@@ -66,7 +66,7 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
   }
 
-  "iterator source" should "work" in {
+  "groupBy flowOp" should "work" in {
     val source = Source(List(1, 2, 3, 4))
 
     val afterGroupBy = source.groupBy{i=>
@@ -79,5 +79,39 @@ class StreamSpec(_system: ActorSystem)
     }
 
     Await.result(future, 5.seconds)
+  }
+
+  "groupBy flowOps and runFold for aggregate" should "work" in {
+    val future = Source(List(1, 2, 3, 4))
+      .groupBy{ i => if(i%2 == 0) "even" else "odd" }
+      .runForeach{
+        case (key, source) => {
+          // use runFold to aggregate each source
+          source.runFold(0)((a, b) => a+b).onComplete {
+            case Success(sum) => if(key=="even") assert(sum==6) else assert(sum==4)
+            case Failure(failure) => print(failure.getMessage)
+          }
+        }
+      }
+
+    Await.result(future, 5.seconds)
+  }
+
+  "Source" should "be extended by stage" in {
+    val stage = new StatefulStage[Int, (Int, Int)] {
+      override def initial = new State {
+        override def onPush(elem: Int, ctx: Context[(Int, Int)]) = {
+          emit(List((elem, elem * 10)).iterator, ctx)
+        }
+      }
+    }
+
+    val b = Source(List(1, 2, 3, 4))
+      .transform(() => stage)
+      .runWith(Sink.foreach{
+        case (orig, transformed) => assert(orig * 10 == transformed)
+    })
+
+    Await.result(b, 5.seconds)
   }
 }
