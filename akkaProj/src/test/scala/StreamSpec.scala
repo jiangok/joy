@@ -4,9 +4,9 @@
 
 import java.io.File
 
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.stage.{PushPullStage, SyncDirective, Context, StatefulStage}
+import akka.stream.{OverflowStrategy, ActorMaterializer}
+import akka.stream.scaladsl.{Keep, Flow, Sink, Source}
+import akka.stream.stage._
 import akka.util.ByteString
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import akka.actor.{ Actor, Props, ActorSystem, FSM }
@@ -97,7 +97,7 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
   }
 
-  "Source" should "be extended by stage" in {
+  "Source" should "be transformed by stage" in {
     val stage = new StatefulStage[Int, (Int, Int)] {
       override def initial = new State {
         override def onPush(elem: Int, ctx: Context[(Int, Int)]) = {
@@ -106,12 +106,40 @@ class StreamSpec(_system: ActorSystem)
       }
     }
 
-    val b = Source(List(1, 2, 3, 4))
+    val future = Source(List(1, 2, 3, 4))
       .transform(() => stage)
       .runWith(Sink.foreach{
         case (orig, transformed) => assert(orig * 10 == transformed)
     })
 
-    Await.result(b, 5.seconds)
+    Await.result(future, 5.seconds)
+  }
+
+  "Source" should "concat with Flow using via" in {
+    val flow = Flow[Int].map{ i => (i, i * 10) }
+
+    val future = Source(List(1,2,3,4)).via(flow).runForeach{
+      case (orig, transformed) => assert(orig*10 == transformed)}
+
+    Await.result(future, 5.seconds)
+  }
+
+  "buffer FlowOp" should "work with back pressure strategy" in {
+
+    //"Elements are pulled out of the iterator in accordance with the demand coming
+    //from the downstream transformation steps."
+
+    //Note: Must use toMat() instead of to() to use the sink's mat (Future[Unit])
+    //instead of source's mat (Unit)
+    var sum = 0
+    val future = Source(List(1, 2, 3, 4))  // Source[Int, Unit]
+      .buffer(2, OverflowStrategy.backpressure) // Source[Int, Unit]
+      .toMat(Sink.foreach{i=>sum+=i; Thread.sleep(500)})(Keep.right)  // RunnableGraph[Future[Unit]], slow sink.
+      .run()
+
+    Await.result(future, 5.seconds)
+
+    // despite of slow sink, no source elements are missing from the sum.
+    assert(sum == 10)
   }
 }
