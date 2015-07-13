@@ -4,10 +4,12 @@
 
 import java.io.File
 
+import akka.stream.actor.ActorPublisher
 import akka.stream.{OverflowStrategy, ActorMaterializer}
-import akka.stream.scaladsl.{Keep, Flow, Sink, Source}
+import akka.stream.scaladsl._
 import akka.stream.stage._
 import akka.util.ByteString
+import com.sun.xml.internal.ws.developer.MemberSubmissionAddressing.Validation
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import akka.actor.{ Actor, Props, ActorSystem, FSM }
 import akka.testkit.{ ImplicitSender, TestKit, TestActorRef, TestFSMRef }
@@ -44,7 +46,7 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
   }
 
-  "Source.single" should "work with runFold" in {
+  it should "work with runFold" in {
     val future : Future[Int] = Source.single(5).runFold(1)((a, b) => a+b)
 
     future onComplete({
@@ -55,7 +57,7 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
   }
 
-  "Source.single" should "work with runWith" in {
+  it should "work with runWith" in {
     val future : Future[Int] = Source.single(5).runWith(Sink.head)
 
     future onComplete({
@@ -115,7 +117,7 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
   }
 
-  "Source" should "concat with Flow using via" in {
+  it should "concat with Flow using via" in {
     val flow = Flow[Int].map{ i => (i, i * 10) }
 
     val future = Source(List(1,2,3,4)).via(flow).runForeach{
@@ -142,4 +144,71 @@ class StreamSpec(_system: ActorSystem)
     // despite of slow sink, no source elements are missing from the sum.
     assert(sum == 10)
   }
+
+  it should "work with dropHead strategy" in {
+    var sum = 0
+    val future = Source(List(1, 2, 3, 4))
+      .buffer(2, OverflowStrategy.dropHead)
+      .toMat(Sink.foreach{i=>sum+=i; Thread.sleep(500)})(Keep.right)
+      .run()
+
+    Await.result(future, 5.seconds)
+
+    // drop the oldest elements in the buffer
+    // so the buffer will only store 3 and 4.
+    assert(sum == 7)
+  }
+
+  "~>" should "work from Source to Sink" in {
+
+    var sum = 0
+    val source = Source(List(1,2,3,4))
+    val sink = Sink.foreach[Int](i => sum += i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) => src ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(sum == 10)
+  }
+
+
+  "tcp" should "work" in {
+    val host = "127.0.0.1"
+    val port = 6000
+    val testInput = 'a' to 'z'
+
+    val serverSource = Tcp().bind(host, port)
+    val serverSink = Sink.foreach[Tcp.IncomingConnection] { conn =>
+      conn handleWith(Flow[ByteString])
+    }
+    val serverFuture = serverSource.to(serverSink).run()
+
+    val clientFuture = Source(testInput.map(ByteString(_))).via(Tcp().outgoingConnection(host, port))
+      .runFold(ByteString.empty){(acc, in) => acc ++ in}
+
+    Await.result(clientFuture, 5.seconds)
+    Await.result(serverFuture, 5.seconds)
+
+    assert(serverFuture.value.get.get.localAddress.toString == "/" + host + ":" + port.toString)
+    assert(clientFuture.value.get.get.utf8String == testInput.foldLeft("")((str, c) => str + c))
+  }
+
+
+  /*
+    "Source" should "work for ActorPublisher" in {
+      import FlowGraph.Implicits._
+
+      class TestPublisher extends ActorPublisher[Int]
+      {
+        override def receive = {
+          case i : Int => print(i.toString)
+        }
+      }
+
+      Source(new TestPublisher) ~> Sink.ignore
+    }*/
 }
