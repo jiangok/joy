@@ -295,7 +295,7 @@ class StreamSpec(_system: ActorSystem)
   }
 
   "Broadcast and Merge" should "work" in {
-    val source = Source(List(1,2,3,4))
+    val source = Source(1 to 4)
     val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
 
     val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
@@ -314,6 +314,56 @@ class StreamSpec(_system: ActorSystem)
 
     Await.result(future, 5.seconds)
     assert(future.value.get.get == 20)
+  }
+
+  "PushStage" should "work with Source" in {
+    class Map[A, B](f: A => B) extends PushStage[A, B] {
+      override def onPush(elem: A, ctx: Context[B]) : SyncDirective =
+        ctx.push(f(elem))
+    }
+
+    val mapStage = new Map[Int, Int]( a => a*(-1))
+    val source = Source(1 to 4).transform(() => mapStage)
+
+    //NOTE: [Int, Int] is mandatory, otherwise ~> cannot be resolved.
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          src  ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == -10)
+  }
+
+  it should "work with Flow" in {
+    class Map[A, B](f: A => B) extends PushStage[A, B] {
+      override def onPush(elem: A, ctx: Context[B]) : SyncDirective =
+        ctx.push(f(elem))
+    }
+
+    val mapStage = new Map[Int, Int]( a => a*(-1))
+    val flow = Flow[Int].transform(()=>mapStage)
+
+    val source = Source(1 to 4)
+
+    //NOTE: [Int, Int] is mandatory, otherwise ~> cannot be resolved.
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          src  ~> flow ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == -10)
   }
 
 
