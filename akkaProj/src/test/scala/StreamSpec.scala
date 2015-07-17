@@ -366,6 +366,63 @@ class StreamSpec(_system: ActorSystem)
     assert(future.value.get.get == -10)
   }
 
+  "StatefulStage" should "emit multiple elements" in {
+    class Duplicator[Int]() extends StatefulStage[Int, Int] {
+      override def initial: StageState[Int, Int] = new StageState[Int, Int] {
+        override  def onPush(elem: Int, ctx: Context[Int]) : SyncDirective =
+          emit(List(elem, elem).iterator, ctx)
+      }
+    }
+
+    val source = Source(1 to 4).transform(() => new Duplicator[Int]())
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          src ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 20)
+  }
+
+  "StatefulStage" should "become behavior" in {
+    // this stage will change state if the elem > 3
+    class ZeroOneStage() extends StatefulStage[Int, Int] {
+      override def initial: StageState[Int, Int] = new StageState[Int, Int] {
+        override def onPush(elem: Int, ctx: Context[Int]): SyncDirective = {
+          if (elem < 3)
+            emit(List(0).iterator, ctx)
+          else {
+            become(OneState)
+            OneState.onPush(elem, ctx)
+          }
+        }
+      }
+
+      val OneState : StageState[Int, Int] = new StageState[Int, Int] {
+        override def onPush(elem: Int, ctx: Context[Int]) : SyncDirective = {
+          emit(List(1).iterator, ctx)
+        }
+      }
+    }
+
+    val source = Source(1 to 4).transform(() => new ZeroOneStage())
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          src ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 2)
+  }
+
 
   /*
     "Source" should "work for ActorPublisher" in {
