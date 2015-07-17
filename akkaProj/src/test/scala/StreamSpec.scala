@@ -10,6 +10,7 @@ import akka.stream.{OverflowStrategy, ActorMaterializer}
 import akka.stream.scaladsl._
 import akka.stream.stage._
 import akka.util.ByteString
+//import akka.stream.scaladsl2._
 import com.sun.xml.internal.ws.developer.MemberSubmissionAddressing.Validation
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import akka.actor.{ Actor, Props, ActorSystem, FSM }
@@ -241,12 +242,78 @@ class StreamSpec(_system: ActorSystem)
     val file = org.apache.commons.io.FileUtils.toFile(getClass.getResource("/example.csv"))
     assert(file.exists())
 
+    // without Framing the number of lines will be 1 instead of 4.
     val future = SynchronousFileSource(file)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 256, allowTruncation = true))
-      .map(b=>b.utf8String + "\n").runFold(0)((lines, str) => lines + 1)
+      .map(b=>b.utf8String + "\n")
+      .runFold(0)((lines, str) => lines + 1) // get the number of lines.
 
     Await.result(future, 5.seconds)
     assert(future.value.get.get == 4)
+  }
+
+
+  "Merge" should "work" in {
+    val source = Source(List(1,2,3,4))
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          val merge = Merge[Int](2)  // 2 inputPorts
+          val merge1 = builder.add(merge)
+
+          src ~> merge1 ~> snk
+          Source.single(10) ~> merge1
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 20)
+  }
+
+  "Balance and Merge" should "work" in {
+    val source = Source(List(1,2,3,4))
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          val balance = Balance[Int](2) // 2 outputPorts
+          val b1 = builder.add(balance)
+
+          val merge = Merge[Int](2)  // 2 inputPorts
+          val merge1 = builder.add(merge)
+
+          src ~> b1 ~> merge1 ~> snk
+                 b1 ~> merge1
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 10)
+  }
+
+  "Broadcast and Merge" should "work" in {
+    val source = Source(List(1,2,3,4))
+    val sink = Sink.fold[Int, Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          val broadcast = Broadcast[Int](2) // 2 outputPorts
+          val b1 = builder.add(broadcast)
+
+          val merge = Merge[Int](2)  // 2 inputPorts
+          val merge1 = builder.add(merge)
+
+          src ~> b1 ~> merge1 ~> snk
+                 b1 ~> merge1
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 20)
   }
 
 
