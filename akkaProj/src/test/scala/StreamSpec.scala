@@ -507,10 +507,69 @@ class StreamSpec(_system: ActorSystem)
     //future.value.get.get.foreach(a=>print(a.toString))
   }
 
-  // FlexiRoute
-
   // DetachedStage
+  "DetachedStage" should "work" in {
+    class Buffer2[T] extends DetachedStage[T, T] {
+      var buf = List[T]()
+      val SIZE = 2
+      var capacity : Int = SIZE
 
+      def isFull() = capacity == 0
+
+      def isEmpty() = capacity == SIZE
+
+      def dequeue() : T = {
+        capacity += 1
+        val e = buf(SIZE - capacity -1)
+        buf = buf.drop(1)
+        e
+      }
+
+      def enqueue(elem: T) = {
+        capacity -= 1
+        buf = buf :+ elem
+      }
+
+      def onPull(ctx : DetachedContext[T]) : DownstreamDirective = {
+        if (isEmpty()) {
+          if (ctx.isFinishing) ctx.finish() // No more elements will arrive
+          else ctx.holdDownstream() // waiting until new elements
+        } else {
+          val next = dequeue()
+          if (ctx.isHoldingUpstream) ctx.pushAndPull(next) // release upstream
+          else ctx.push(next)
+        }
+      }
+
+      def onPush(elem: T, ctx: DetachedContext[T]): UpstreamDirective = {
+        enqueue(elem)
+        if (isFull()) ctx.holdUpstream() // Queue is now full, wait until new empty slot
+        else {
+          if (ctx.isHoldingDownstream) ctx.pushAndPull(dequeue()) // Release downstream
+          else ctx.pull()
+        }
+      }
+
+      override def onUpstreamFinish(ctx: DetachedContext[T]) : TerminationDirective = {
+        if (!isEmpty()) ctx.absorbTermination() // still need to flush from buffer
+        else ctx.finish() // already empty, finishing
+      }
+    }
+
+    val bufStage = new Buffer2[Int]
+    val source = Source(1 to 4)
+    val sink = Sink.fold[Int,Int](0)((sum, i) => sum + i)
+
+    val future = FlowGraph.closed(source, sink)((srcMat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src, snk) =>
+          src ~> snk
+    }.run()
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 10)
+  }
 
 
   /*
