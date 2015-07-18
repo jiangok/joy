@@ -5,9 +5,10 @@
 import java.io.File
 import java.security.MessageDigest
 
+import akka.stream.FanInShape.{Init, Name}
 import akka.stream.actor.ActorPublisher
 import akka.stream.io.{SynchronousFileSource, Framing}
-import akka.stream.{OverflowStrategy, ActorMaterializer}
+import akka.stream.{Attributes, FanInShape, OverflowStrategy, ActorMaterializer}
 import akka.stream.scaladsl._
 import akka.stream.stage._
 import akka.util.ByteString
@@ -451,6 +452,64 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
     assert(future.value.get.get == 10)
   }
+
+  "FlexiMerge" should "work" in {
+    // define shape
+    class PreferringMergeShape[A](_init: Init[A] = Name("PreferringMerge"))
+      extends FanInShape[A](_init) {
+      val preferred = newInlet[A]("preferred")
+      val secondary1 = newInlet[A]("secondary1")
+      val secondary2 = newInlet[A]("secondary2")
+      protected override def construct(i: Init[A]) = new PreferringMergeShape[A](i)
+    }
+
+    // define logic
+    class PreferringMerge extends FlexiMerge[Int, PreferringMergeShape[Int]](
+      new PreferringMergeShape, Attributes.name("ImportantWithBackups")) {
+      import akka.stream.scaladsl.FlexiMerge._
+
+      override def createMergeLogic(p: PortT) = new MergeLogic[Int] {
+        override def initialState =
+          State[Int](ReadPreferred(p.preferred, p.secondary1, p.secondary2)) {
+            (ctx, input, element) =>
+              ctx.emit(element)
+              SameState
+          }
+      }
+    }
+
+    val preferredSource = Source(1 to 10)
+    val secondary1Source = Source(20 to 30)
+    val secondary2Source = Source(40 to 50)
+
+    // this sink stores all elements into a list so that we can verify the order later.
+    // we expect the first 4 elements are 1 to 4.
+    val sink = Sink.fold[List[Int], Int](List[Int]())((list, a) => list :+ a)
+
+    val future = FlowGraph.closed(
+      preferredSource, secondary1Source, secondary2Source, sink)((srcMat, src1Mat, src2Mat, snkMat) => snkMat) {
+      implicit builder =>
+        import FlowGraph.Implicits._
+        (src0, src1, src2, snk) =>
+          val merge = builder.add(new PreferringMerge())
+
+          src0 ~> merge.preferred;  merge.out ~> snk
+          src1 ~> merge.secondary1
+          src2 ~> merge.secondary2
+
+    }.run()
+
+    Await.result(future, 5.seconds)
+
+    // PreferringMerge does not guarantee preferredSource elements all reach
+    // sink before other sources. The order could be:
+    // 1,20,40,21,2,3,4,5,6,7,8,9,10,22,23...
+    //future.value.get.get.foreach(a=>print(a.toString))
+  }
+
+  // FlexiRoute
+
+  // DetachedStage
 
 
 
