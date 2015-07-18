@@ -3,6 +3,7 @@
  */
 
 import java.io.File
+import java.security.MessageDigest
 
 import akka.stream.actor.ActorPublisher
 import akka.stream.io.{SynchronousFileSource, Framing}
@@ -422,6 +423,35 @@ class StreamSpec(_system: ActorSystem)
     Await.result(future, 5.seconds)
     assert(future.value.get.get == 2)
   }
+
+  "PushPullStage" should "work for calculating stream sum" in {
+    def sumCalculator() = new PushPullStage[Int, Int] {
+      var sum = 0
+      override def onPush(num: Int, ctx: Context[Int]) : SyncDirective = {
+        sum += num
+        ctx.pull() // ctx.pull does not do anything since Source does not handle it.
+      }
+
+      override def onPull(ctx: Context[Int]) : SyncDirective = {
+        if(ctx.isFinishing) ctx.pushAndFinish(sum)
+        else ctx.pull()
+      }
+
+      override def onUpstreamFinish(ctx: Context[Int]) : TerminationDirective = {
+        // needed otherwise stage is terminated immediately when source is exhausted.
+        ctx.absorbTermination()
+      }
+    }
+
+    val calsum =
+      Source(1 to 4).transform(() => sumCalculator())
+
+    val future = calsum.runFold(0)((a,b) => a + b)
+
+    Await.result(future, 5.seconds)
+    assert(future.value.get.get == 10)
+  }
+
 
 
   /*
