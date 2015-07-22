@@ -2,9 +2,15 @@
 exec scala -nocompdaemon -savecompiled -Dfile.encoding=UTF-8 "$0" $@
 !#
 
+// This script relies on playa-mesos vagrant box
+// cd ~/Github/playa-mesos
+// vagrant up
+
+// example: deploy2mesos.sh andrew  - (re)deploy andrew container to mesos
+
 import sys.process._
 
-val containerName = "andrew"
+val containerName = args(0)
 val ip="http://10.141.141.10:8080"
 val containerJson = s"${containerName}.json"
 
