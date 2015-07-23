@@ -25,14 +25,20 @@ object AkkaBuild extends Build {
     scalaVersion := "2.11.6",
 
     resolvers ++= Seq(
-      "spray repo" at "http://repo.spray.io/",
-      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/",
+      Resolver.bintrayRepo("mfglabs", "maven"),
+      Resolver.sonatypeRepo("releases"),
       Resolver.sonatypeRepo("snapshots")
+     //"spray repo" at "http://repo.spray.io/",
+     // "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/",
+      //Resolver.sonatypeRepo("snapshots")
     ),
 
     libraryDependencies ++= Seq(akka_actor, junit,
       slf4j, log4j2_slf4j, log4j2_core, log4j2_api,
-      akka_testkit, scalatest, leveldb, leveldbjni)
+      akka_testkit, scalatest, leveldb, leveldbjni,
+      akka_http_core, akka_http_spray, akka_http_testkit,
+      apache_commons_lang, apache_common_io, akka_stream, json4sNative,
+      mfglabs, shapeless, shapelessStream, rx)
   )
 
   val akka_actor = "com.typesafe.akka" %% "akka-actor" % "2.3.11"
@@ -46,6 +52,20 @@ object AkkaBuild extends Build {
   val scalatest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val leveldb = "org.iq80.leveldb" % "leveldb" % "0.7"
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
+  val mfglabs = "com.mfglabs" %% "akka-stream-extensions" % "0.7.3"
+  val shapeless = "com.chuusai" %% "shapeless" % "2.2.4"
+  val shapelessStream = "com.mfglabs" %% "akka-stream-extensions-shapeless" % "0.7.3"
+  val rx = "io.reactivex" %% "rxscala" % "0.25.0"
+
+  val json4sNative = "org.json4s" %% "json4s-native" % "3.2.11"
+  val akkaStreamV = "1.0"
+  val akka_http_core = "com.typesafe.akka" %% "akka-http-core-experimental"          % akkaStreamV
+  val akka_http_spray = "com.typesafe.akka" %% "akka-http-spray-json-experimental"    % akkaStreamV
+  val akka_http_testkit = "com.typesafe.akka" %% "akka-http-testkit-experimental" % akkaStreamV
+  val akka_stream = "com.typesafe.akka" %% "akka-stream-experimental"             % akkaStreamV
+  val apache_commons_lang = "org.apache.commons" % "commons-lang3" % "3.3.2"
+  val apache_common_io = "org.apache.commons" % "commons-io" % "1.3.2"
+
 
   lazy val app = Project("app", file(".")).
     enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).
