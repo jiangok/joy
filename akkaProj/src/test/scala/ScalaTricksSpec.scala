@@ -145,6 +145,13 @@ class ScalaTricksSpec(_system: ActorSystem)
     assert(client2(1, 2) == (2, 1))
   }
 
+  "Future" should "be simply instantiated" in {
+    val future = Future[Int]{ 10 }
+
+    Await.result(future, 5 seconds)
+    assert(future.value.get.get == 10)
+  }
+
   "implicit" should "work for tuple parameter" in {
     trait Trait1[T] {
       def dummy = 10

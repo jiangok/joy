@@ -72,24 +72,40 @@ class RxSpec(_system: ActorSystem)
 
   "size" should "be generic for preliminary types" in {
     object size extends Poly1 {
-      //return an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[Int, shapeless.HNil]]
+      //return an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[Int, shapeless.HNil]]{ type Result = Int }
       implicit def caseInt = at[Int](x => 1)
 
-      //return an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[String, shapeless.HNil]]
+      //return an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[String, shapeless.HNil]]{ type Result = Int }
       implicit def caseString = at[String](_.length)
 
-      //at[]() returns an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[(T, U), shapeless.HNil]]
-      //Aux[T,Int] is  an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[(T, U), shapeless.HNil]] { override type Result = Result0}
+      //at[]() returns an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[(T, U), shapeless.HNil]] { type Result = Int }
+      //Aux[T,Int] is  an object of type shapeless.poly.Case[Poly1.this.type, shapeless.::[T, shapeless.HNil]] { type Result = Int}
       implicit def caseTuple[T, U](implicit st: Case.Aux[T, Int], su: Case.Aux[U, Int]) =
         at[(T,U)](t => size(t._1) + size(t._2))
     }
 
-    // call PolyDefns, abstract class,
-    // def apply[T](t : T)(implicit ev : scala.Predef.=:=[shapeless.::[T, shapeless.HNil], L]) : Case.this.Result
-    // as long as type T::HNil =:= L where T is Int.
+    // call PolyApply's
+    // def apply[A](a : A)(implicit cse : shapeless.poly.Case[PolyApply.this.type, shapeless.::[A, shapeless.HNil]]) : cse.Result
     assert(size(23) == 1)
 
     assert(size("abc") == 3)
+
+    // size((23,"foo")) can execute if:
+    // 1. size(Int) can execute.
+    // 2. size(String) can execute.
     assert(size((23, "foo")) == 4)
   }
+
+  "HMap" should "work" in {
+    class MyMap[K,V]
+
+    implicit  val intToString = new MyMap[Int, String]
+    implicit  val stringToInt = new MyMap[String, Int]
+
+    val hm = HMap[MyMap](23->"foo", "bar"->13)
+    assert(hm.get(23) == Some("foo"))
+    assert(hm.get("bar") == Some(13))
+  }
+
+
 }

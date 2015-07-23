@@ -10,7 +10,7 @@ import org.scalatest._
 
 // akka-http testkit (e.g. ScalatestRouteTest) conflicts with akka.testkit
 // this spec cannot use the akka.testkit framework which is used in StreamSpec.
-class ServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with Service {
+class AkkaHttpSpec extends FlatSpec with Matchers with ScalatestRouteTest with Service {
   override def testConfigSource = "akka.loglevel = WARNING"
   override val logger = NoLogging
 
