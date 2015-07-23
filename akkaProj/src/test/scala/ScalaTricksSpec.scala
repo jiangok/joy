@@ -92,6 +92,17 @@ class ScalaTricksSpec(_system: ActorSystem)
     assert(f() == false)
   }
 
+  "implicit" should "work for function without explicit parameters -2" in {
+
+    def f1() : Int = 10
+
+    implicit  def f2(a: Int): Boolean = a < 0
+
+    def f3(b : Boolean) : Boolean = b
+
+    assert(f3(f1()) == false)
+  }
+
   "implicit apply" should "convert target to object" in {
     // Note the implicit apply()
     object obj { implicit def apply(i : Int) : obj = new obj() }
@@ -100,6 +111,38 @@ class ScalaTricksSpec(_system: ActorSystem)
     // NO Need to import obj._
     def f() : obj = 10 // this will be converted to obj.
     assert(f().i == 0)
+  }
+
+  "partial function" should "work for fraction" in {
+    // why do we need partial function?
+    // Because the client function can use isDefinedAt to elegantly handle the two cases.
+    // NOTE: match CAN be skipped for anonymous function
+    val fraction : PartialFunction[Int, Int] = { case d if d != 0 => 10/d }
+
+    // match CANNOT be skipped for a non-anonymous function
+    def client(d: Int) : Option[Int] =
+      d match {
+        case c if fraction.isDefinedAt(c) => Some(fraction(2))
+        case _ => None
+      }
+
+    assert(client(2) == Some(5))
+    assert(client(0) == None)
+  }
+
+  "curry" should "work" in {
+    def sort(f: (Int, Int) => Boolean, t: (Int, Int)) = {
+      if(f(t._1, t._2) == true) (t._2, t._1)
+      else t
+    }
+
+    def sortCurried = (sort _).curried
+
+    def client1 = sortCurried((i, j) => i > j)
+    assert(client1(1, 2) == (1, 2))
+
+    def client2 = sortCurried((i, j) => i < j)
+    assert(client2(1, 2) == (2, 1))
   }
 
   "implicit" should "work for tuple parameter" in {
