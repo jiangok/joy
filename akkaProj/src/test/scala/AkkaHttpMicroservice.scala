@@ -10,8 +10,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
 import java.io.IOException
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.math._
@@ -96,6 +94,10 @@ trait Service extends Protocols {
               // using implicit def liftMarshaller[T](implicit m: ToEntityMarshaller[T]): ToResponseMarshaller[T] =
 
               case Right(ipInfo) => ipInfo
+
+                // the marshaller is in PredefinedToResponseMarshallers.scala fromStatusCodeAndValue
+                // there is implicit marshaller for string (PredefinedToEntityMarshallers.scala) but
+                // there is NO one for Int, so BadRequest -> 10 will not compile!
               case Left(errorMessage) => BadRequest -> errorMessage
             }
           }
