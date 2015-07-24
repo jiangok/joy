@@ -5,8 +5,18 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.ContentTypes._
+import spray.json.DefaultJsonProtocol
 
-class Service2Spec extends FlatSpec with Matchers with ScalatestRouteTest {
+// THIS MUST BE IMPORTED FOR APair TO FIND THE IMPLICIT MARSHALLER
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
+case class APair(ip1: String, ip2: String)
+
+trait APairProtocol extends DefaultJsonProtocol {
+  implicit val APairFormat = jsonFormat2(APair.apply)
+}
+
+class Service2Spec extends FlatSpec with Matchers with ScalatestRouteTest with APairProtocol {
 
   val map = Map("red" -> 1, "yellow" -> 2)
 
@@ -33,13 +43,17 @@ class Service2Spec extends FlatSpec with Matchers with ScalatestRouteTest {
       complete {
         Future[Unit] {}.map[ToResponseMarshallable] { case _ => OK -> s.toString }
       }
-    } ~ (get & path("a6" / map / map)) { (firstMatch, secondMatch)  =>
+    } ~ (get & path("a6" / map / map)) { (firstMatch, secondMatch) =>
       complete {
         Future[Unit] {}.map[ToResponseMarshallable] { case _ => OK -> secondMatch.toString }
       }
     } ~ (post & path("a7") & entity(as[String])) { s =>
       complete {
         Future[Unit] {}.map[ToResponseMarshallable] { case _ => OK -> s }
+      }
+    }  ~ (post & path("a8") & entity(as[APair])) { pair =>
+      complete {
+        Future[Unit] {}.map[ToResponseMarshallable] { case _ => OK -> pair.ip1 }
       }
     }
   }
@@ -72,5 +86,9 @@ class Service2Spec extends FlatSpec with Matchers with ScalatestRouteTest {
 
   Post("/a7", "content") ~> routes ~> check {
     responseAs[String] shouldBe "content"
+  }
+
+  Post("/a8", APair("ip1", "ip2")) ~> routes ~> check {
+    responseAs[String] shouldBe "ip1"
   }
 }

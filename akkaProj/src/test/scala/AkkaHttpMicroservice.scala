@@ -117,13 +117,3 @@ trait Service extends Protocols {
     }
   }
 }
-
-object AkkaHttpMicroservice extends App with Service {
-  override implicit val system = ActorSystem()
-  override implicit val executor = system.dispatcher
-  override implicit val materializer = ActorMaterializer()
-
-  override val logger = Logging(system, getClass)
-
-
-}
