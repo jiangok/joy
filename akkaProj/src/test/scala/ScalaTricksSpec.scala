@@ -9,7 +9,7 @@ import akka.actor.{ Actor, Props, ActorSystem, FSM }
 import akka.testkit.{ ImplicitSender, TestKit, TestActorRef, TestFSMRef }
 import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 import ExecutionContext.Implicits.global
 import shapeless._
 import com.mfglabs.stream._
@@ -148,9 +148,41 @@ class ScalaTricksSpec(_system: ActorSystem)
   "Future" should "be simply instantiated" in {
     val future = Future[Int]{ 10 }
 
-    Await.result(future, 5 seconds)
+    Await.result(future, 5 seconds) // no need?
     assert(future.value.get.get == 10)
   }
+
+  "Either" should "work for divide with prior knowledge" in {
+    def divide(i : Int) : Either[String, Int] = if(i!=0) Right(10/i) else Left("wrong!")
+    assert(divide(0).left.get == "wrong!")
+    assert(divide(1).right.get == 10)
+  }
+
+  "Try" should "work for divide without prior knowledge" in {
+    def divide(a: Int, b: Int) : Try[Int]= {
+      val dividend = Try(a)
+      val divisor = Try(b)
+
+      // Try support for comprehension, Either does not.
+      for (
+        x <- dividend;
+        y <- divisor
+      ) yield x / y
+    }
+
+    // Try is NOT Future, so below runs
+    // on main thread and no need to wait.
+    divide(10, 0) match {
+      case Success(a) => assert(false)
+      case Failure(e) => assert(e.getMessage.indexOf("/ by zero") > -1)
+    }
+
+    divide(10, 1) match {
+      case Success(a) => assert(a == 10)
+      case Failure(e) => assert(false)
+    }
+  }
+
 
   "implicit" should "work for tuple parameter" in {
     trait Trait1[T] {

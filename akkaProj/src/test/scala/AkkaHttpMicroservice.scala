@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.{HttpResponse, HttpRequest}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.{Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import java.io.IOException
 import scala.concurrent.{ExecutionContextExecutor, Future}
