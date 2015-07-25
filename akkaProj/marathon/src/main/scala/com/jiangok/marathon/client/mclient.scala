@@ -58,11 +58,6 @@ object MarathonRest extends Enumeration {
   )
 }
 
-object HttpType extends Enumeration {
-  type HttpType = Value
-  val Get, Post, Delete, Put = Value
-}
-
 trait MClient extends MarathonApiProtocol
 {
   implicit val system: ActorSystem

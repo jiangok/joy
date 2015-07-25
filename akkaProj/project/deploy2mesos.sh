@@ -6,7 +6,9 @@ exec scala -nocompdaemon -savecompiled -Dfile.encoding=UTF-8 "$0" $@
 // cd ~/Github/playa-mesos
 // vagrant up
 
-// example: deploy2mesos.sh andrew  - (re)deploy andrew container to mesos
+// example ((re)deploy andrew container to mesos):
+// cd ~/GitHub/joy/akkaProj/project/
+// deploy2mesos.sh andrew
 
 import sys.process._
 

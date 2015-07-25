@@ -17,7 +17,7 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging.autoImport._
 
-object AkkaBuild extends Build {
+object build extends Build {
 
   lazy val basicSettings = Seq(
     organization := "com.lian.akka",
@@ -69,6 +69,7 @@ object AkkaBuild extends Build {
 
   lazy val root = Project("root", file(".")).
     aggregate(app, marathonClient).
+    dependsOn(app, marathonClient).
     settings(basicSettings: _*).
     settings(
       name := "testsbt"
@@ -76,6 +77,7 @@ object AkkaBuild extends Build {
 
   lazy val app = Project("app", file("root")).
     enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).
+   // dependsOn(marathonClient).
     settings(basicSettings: _*).
     settings(
       assemblyJarName in assembly := "fatapp.jar",
