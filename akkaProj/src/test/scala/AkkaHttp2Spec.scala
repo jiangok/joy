@@ -11,12 +11,10 @@ import org.scalatest._
 import spray.json.DefaultJsonProtocol
 import scala.concurrent.duration._
 
-import scala.concurrent.{Promise, Await, Future}
+import scala.concurrent.{Await, Future}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
-import scala.util.Try
-import scalaz._
-import Scalaz._
+import fommil.sjs.FamilyFormats._
 
 class AkkaHttp2Spec
   extends FlatSpec with Matchers with ScalatestRouteTest with Protocols {
@@ -153,4 +151,40 @@ class BookSpec
     assert(future1.value.get.get.chapter1 == "ch1")
   }
 }
+
+///////////////// spray json shapeless
+
+package domain {
+
+sealed trait MyTrait
+
+case class Duck(name: String) extends MyTrait
+
+case class Chick(name: String) extends MyTrait
+
+}
+
+class BirdSpec
+  extends FlatSpec with Matchers with ScalatestRouteTest {
+
+  import domain._
+
+  "SprayJsonShapeless" should "work" in {
+    val d1 = Duck("d1")
+    val c1 = Chick("c1")
+
+    val d1Entity = marshal(d1)
+    val c1Entity = marshal(c1)
+
+    val future1 = Unmarshal(d1Entity).to[Duck]
+    val future2 = Unmarshal(c1Entity).to[Chick]
+
+    Await.result(future1, 5 seconds)
+    Await.result(future2, 5 seconds)
+
+    assert(future1.value.get.get.name == "d1")
+    assert(future2.value.get.get.name == "c1")
+  }
+}
+
 

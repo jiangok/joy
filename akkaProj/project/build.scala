@@ -38,7 +38,7 @@ object build extends Build {
       akka_testkit, scalatest, leveldb, leveldbjni,
       akka_http_core, akka_http_spray, akka_http_testkit,
       apache_commons_lang, apache_common_io, akka_stream, json4sNative,
-      mfglabs, shapeless, shapelessStream, rx, scalaz)
+      mfglabs, shapeless, shapelessStream, rx, scalaz, sprayJsonShapeless)
   )
 
   val akka_actor = "com.typesafe.akka" %% "akka-actor" % "2.3.11"
@@ -66,6 +66,7 @@ object build extends Build {
   val apache_commons_lang = "org.apache.commons" % "commons-lang3" % "3.3.2"
   val apache_common_io = "org.apache.commons" % "commons-io" % "1.3.2"
   val scalaz = "org.scalaz" %% "scalaz-core" % "7.1.3"
+  val sprayJsonShapeless = "com.github.fommil" %% "spray-json-shapeless" % "1.1.0"
 
   lazy val root = Project("root", file(".")).
     aggregate(app, marathonClient).
