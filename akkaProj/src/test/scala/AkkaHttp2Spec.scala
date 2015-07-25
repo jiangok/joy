@@ -51,6 +51,8 @@ class AkkaHttp2Spec
   }
 }
 
+////////////////
+
 case class Dog (name : String)
 case class Dogs (dogs : List[Dog])
 
@@ -62,7 +64,7 @@ trait DogProtocol extends DefaultJsonProtocol {
 class DogSpec
   extends FlatSpec with Matchers with ScalatestRouteTest with DogProtocol {
 
-  "dogs" should "be serialized/deserialized" in {
+  "dog list" should "be serialized/deserialized" in {
     val d1 = Dog("tom")
     val d2 = Dog("mike")
     val dogs = List(d1, d2)
@@ -79,6 +81,32 @@ class DogSpec
     assert(future1.value.get.get == d1)
     assert(future2.value.get.get.head == d1)
     assert(future2.value.get.get.last == d2)
+  }
+}
+
+//////////////
+
+case class Book (chapter1: String, chapter2: String)
+case class PartialBook(chapter1: String) // the member name must match Book's
+
+trait BookProtocol extends DefaultJsonProtocol {
+  implicit val book = jsonFormat2(Book.apply)
+  implicit val partialBook = jsonFormat1(PartialBook)
+}
+
+class BookSpec
+  extends FlatSpec with Matchers with ScalatestRouteTest with BookProtocol {
+
+  "book" should "be partially deserialized" in {
+    val b1 = Book("ch1", "ch2")
+
+    val b1Entity = marshal(b1)
+
+    val future1 = Unmarshal(b1Entity).to[PartialBook]
+
+    Await.result(future1, 5 seconds)
+
+    assert(future1.value.get.get.chapter1 == "ch1")
   }
 }
 
