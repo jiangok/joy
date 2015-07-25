@@ -1,11 +1,12 @@
 import java.io.IOException
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding
-import akka.http.scaladsl.model.{HttpResponse, HttpRequest}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.scaladsl.{Sink, Flow, Source}
+import akka.util.ByteString
 import org.scalatest._
 import spray.json.DefaultJsonProtocol
 import scala.concurrent.duration._
@@ -55,10 +56,16 @@ class AkkaHttp2Spec
 
 case class Dog (name : String)
 case class Dogs (dogs : List[Dog])
+case class DogArray (dogs : Array[Dog])
+case class Dog2 (dog: Dog)
+case class Dogs2 (dogs : Dogs)
 
 trait DogProtocol extends DefaultJsonProtocol {
   implicit val dogFormat = jsonFormat1(Dog.apply)
-  implicit val dogsFormat = listFormat(dogFormat)
+  implicit val dogsFormat = jsonFormat1(Dogs.apply)
+  implicit val dogListFormat = listFormat(dogFormat)
+  implicit val dogArrayFormat = arrayFormat(dogFormat, implicitly[ClassManifest[Dog]])
+  implicit val dog2Format = jsonFormat1(Dog2.apply)
 }
 
 class DogSpec
@@ -67,22 +74,59 @@ class DogSpec
   "dog list" should "be serialized/deserialized" in {
     val d1 = Dog("tom")
     val d2 = Dog("mike")
-    val dogs = List(d1, d2)
+    val dogList = List(d1, d2)
+    val dogArray = Array(d1, d2)
+    val dg2 = Dog2(d1)
+    val dogs = Dogs(dogList)
+    assert(dogs.dogs.length == 2)
 
     val d1Entity = marshal(d1)
-    val dogsEntity = marshal(dogs)
+    val dogsEntity = marshal(dogList)
+    val dogArrayEntity = marshal(dogArray)
+    val dg2Entity = marshal(dg2)
+
+    //print("!!!!!" + dogArrayEntity.data.decodeString("utf-8"))
+    /*
+    both dog list abd dog array has json: [{"name": "tom"}, {"name": "mike"}]
+     */
 
     val future1 = Unmarshal(d1Entity).to[Dog]
     val future2 = Unmarshal(dogsEntity).to[List[Dog]]
+    val dg2future = Unmarshal(dg2Entity).to[Dog2]
 
     Await.result(future1, 5 seconds)
     Await.result(future2, 5 seconds)
+    Await.result(dg2future, 5 seconds)
 
     assert(future1.value.get.get == d1)
     assert(future2.value.get.get.head == d1)
     assert(future2.value.get.get.last == d2)
+    assert(dg2future.value.get.get.dog == d1)
+  }
+
+  "dog json" should "be deserialized" in {
+    val d1 = Dog("tom")
+    val d1Entity = marshal(d1)
+    val d1EntityChanged = d1Entity.copy(data = ByteString.apply("{\"name\": \"mike\"}") )
+    val future1 = Unmarshal(d1EntityChanged).to[Dog]
+    Await.result(future1, 5 seconds)
+    assert(future1.value.get.get.name == "mike")
+  }
+
+  "array value" should "be deserialized" in {
+    val d1 = Dog("tom")
+    val d1Entity = marshal(d1)
+    val d1EntityChanged = d1Entity.copy(
+      data = ByteString.apply("{\"dogs\":[{\"name\": \"mike\"},{\"name\": \"tom\"}]}"))
+    val future1 = Unmarshal(d1EntityChanged).to[Dogs]
+    Await.result(future1, 5 seconds)
+    assert(future1.value.get.get.dogs.length == 2)
   }
 }
+
+
+
+
 
 //////////////
 
