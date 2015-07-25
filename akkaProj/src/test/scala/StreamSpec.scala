@@ -2,18 +2,12 @@
  * Created by lian on 7/3/15.
  */
 
-import java.io.File
-import java.security.MessageDigest
-
 import akka.stream.FanInShape.{Init, Name}
-import akka.stream.actor.ActorPublisher
 import akka.stream.io.{SynchronousFileSource, Framing}
 import akka.stream.{Attributes, FanInShape, OverflowStrategy, ActorMaterializer}
 import akka.stream.scaladsl._
 import akka.stream.stage._
 import akka.util.ByteString
-//import akka.stream.scaladsl2._
-import com.sun.xml.internal.ws.developer.MemberSubmissionAddressing.Validation
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import akka.actor.{ Actor, Props, ActorSystem, FSM }
 import akka.testkit.{ ImplicitSender, TestKit, TestActorRef, TestFSMRef }
@@ -21,6 +15,11 @@ import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import ExecutionContext.Implicits.global
+
+import shapeless._
+import com.mfglabs.stream._
+import extensions.shapeless._
+
 
 class StreamSpec(_system: ActorSystem)
   extends TestKit(_system)
@@ -180,7 +179,7 @@ class StreamSpec(_system: ActorSystem)
     assert(sum == 10)
   }
 
-
+/*
   "tcp" should "work" in {
     val host = "127.0.0.1"
     val port = 6000
@@ -238,7 +237,7 @@ class StreamSpec(_system: ActorSystem)
 
     assert(serverFuture.value.get.get.localAddress.toString == s"/${host}:${port.toString}")
     assert(clientFuture.value.get.get.utf8String == transformedInput.foldLeft("")((str, c) => str + c))
-  }
+  }*/
 
   "SynchronousFileSource" should "work" in {
     val file = org.apache.commons.io.FileUtils.toFile(getClass.getResource("/example.csv"))
@@ -571,18 +570,56 @@ class StreamSpec(_system: ActorSystem)
     assert(future.value.get.get == 10)
   }
 
+  // shapeless stream
+  // https://github.com/MfgLabs/akka-stream-extensions
+  "shapelessStream" should "work" in {
 
-  /*
-    "Source" should "work for ActorPublisher" in {
+    // 1 - Create a type alias for your coproduct
+    type C = Int :+: String :+: Boolean :+: CNil
+
+    // The sink to consume all output data
+    val sink = Sink.fold[Seq[C], C](Seq())(_ :+ _)
+
+    // 2 - a sample source wrapping incoming data in the Coproduct
+    val f = FlowGraph.closed(sink) { implicit builder => sink =>
       import FlowGraph.Implicits._
+      val s = Source(() => Seq(
+        Coproduct[C](1),
+        Coproduct[C]("foo"),
+        Coproduct[C](2),
+        Coproduct[C](false),
+        Coproduct[C]("bar"),
+        Coproduct[C](3),
+        Coproduct[C](true)
+      ).toIterator)
 
-      class TestPublisher extends ActorPublisher[Int]
-      {
-        override def receive = {
-          case i : Int => print(i.toString)
-        }
-      }
+      // 3 - our typed flows
+      val flowInt = Flow[Int].map{i => println("i:"+i); i}
+      val flowString = Flow[String].map{s => println("s:"+s); s}
+      val flowBool = Flow[Boolean].map{s => println("s:"+s); s}
 
-      Source(new TestPublisher) ~> Sink.ignore
-    }*/
+      // >>>>>> THE IMPORTANT THING
+      // 4 - build the coproductFlow in a 1-liner
+      val fr = builder.add(ShapelessStream.coproductFlow(flowInt :: flowString :: flowBool :: HNil))
+      // <<<<<< THE IMPORTANT THING
+
+      // 5 - plug everything together using akkastream DSL
+      s ~> fr.inlet
+      fr.outlet ~> sink
+    }
+
+    // 6 - run it
+    val future = f.run()
+    Await.result(future, 5 seconds)
+
+    future.value.get.get.toSet should equal (Set(
+      Coproduct[C](1),
+      Coproduct[C]("foo"),
+      Coproduct[C](2),
+      Coproduct[C](false),
+      Coproduct[C]("bar"),
+      Coproduct[C](3),
+      Coproduct[C](true)
+    ))
+  }
 }

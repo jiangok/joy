@@ -54,7 +54,7 @@ object AkkaBuild extends Build {
   val leveldbjni = "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
   val mfglabs = "com.mfglabs" %% "akka-stream-extensions" % "0.7.3"
   val shapeless = "com.chuusai" %% "shapeless" % "2.2.4"
-  val shapelessStream = "com.mfglabs" %% "akka-stream-extensions-shapeless" % "0.7.3"
+  val shapelessStream = "com.mfglabs" %% "akka-stream-extensions-shapeless" % "0.8.0"
   val rx = "io.reactivex" %% "rxscala" % "0.25.0"
 
   val json4sNative = "org.json4s" %% "json4s-native" % "3.2.11"
