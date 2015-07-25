@@ -38,7 +38,7 @@ object AkkaBuild extends Build {
       akka_testkit, scalatest, leveldb, leveldbjni,
       akka_http_core, akka_http_spray, akka_http_testkit,
       apache_commons_lang, apache_common_io, akka_stream, json4sNative,
-      mfglabs, shapeless, shapelessStream, rx)
+      mfglabs, shapeless, shapelessStream, rx, scalaz)
   )
 
   val akka_actor = "com.typesafe.akka" %% "akka-actor" % "2.3.11"
@@ -65,9 +65,16 @@ object AkkaBuild extends Build {
   val akka_stream = "com.typesafe.akka" %% "akka-stream-experimental"             % akkaStreamV
   val apache_commons_lang = "org.apache.commons" % "commons-lang3" % "3.3.2"
   val apache_common_io = "org.apache.commons" % "commons-io" % "1.3.2"
+  val scalaz = "org.scalaz" %% "scalaz-core" % "7.1.3"
 
+  lazy val root = Project("root", file(".")).
+    aggregate(app, marathonClient).
+    settings(basicSettings: _*).
+    settings(
+      name := "testsbt"
+    )
 
-  lazy val app = Project("app", file(".")).
+  lazy val app = Project("app", file("root")).
     enablePlugins(JavaServerAppPackaging, DockerPlugin, UniversalPlugin).
     settings(basicSettings: _*).
     settings(
@@ -131,5 +138,8 @@ object AkkaBuild extends Build {
       // the bash scripts classpath only needs the fat jar
       scriptClasspath := Seq( (assemblyJarName in assembly).value )
     )
+
+  lazy val marathonClient = Project("marathonClient", file("marathon")).
+    settings(basicSettings: _*)
 }
 
