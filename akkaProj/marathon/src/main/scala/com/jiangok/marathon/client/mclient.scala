@@ -10,8 +10,10 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source, Flow}
 import scala.collection.immutable.HashMap
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
+import scala.concurrent.duration._
 
 
 object MarathonRest extends Enumeration {
@@ -77,14 +79,13 @@ trait MClient extends MarathonApiProtocol
   def listApps() : Future[Either[String, Apps]] = {
     val (path, context) = MarathonRest.apiMap(MarathonRest.listApps)
     val url =  s"/${version}$path"
-    //print("!!!!!" + url)
 
     marathonRequest(RequestBuilding.Get(url))
       .flatMap {
         response =>
           response.status match {
             case OK =>
-             // response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
+              // response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
               Unmarshal(response.entity).to[Apps].map(Right(_))
             case _ =>
               Unmarshal(response.entity).to[String].flatMap { entity =>

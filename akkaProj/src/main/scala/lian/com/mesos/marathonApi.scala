@@ -40,7 +40,7 @@ object MarathonApi extends App with mc.MClient {
     case "listApps" =>
       val f = listApps()
       Await.ready(f, 10 seconds)
-      println(">>>" + f.value.get.get.right.get.apps(0).id)
+      println(f.value.get.get.right.get.apps(0).id)
 
     case "listApp" =>
     case "listAppVersion" =>
@@ -74,9 +74,9 @@ object MarathonApi extends App with mc.MClient {
     case "metrics" =>
   }
 
-  println("exiting main")
   materializer.shutdown()
   system.shutdown()
+  executionService.shutdown()
 }
 
 object UrlParser {
