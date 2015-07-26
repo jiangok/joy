@@ -67,6 +67,10 @@ object MarathonApi extends App with mc.MClient {
     case "changeGroup" =>
     case "destroyGroup" =>
     case "listTasks" =>
+      val f = listTasks()
+      Await.ready(f, 10 seconds)
+      println(f.value.get.get.right.get.tasks.get(0).appId.get)
+
     case "killTasks" =>
     case "listDeployments" =>
     case "deleteDeployment" =>

@@ -2,9 +2,11 @@ package com.jiangok.marathon.client
 
 import java.io.IOException
 import akka.actor.ActorSystem
+import akka.http.impl.util.JavaMapping.HttpHeader
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ResponseEntity, HttpResponse, HttpRequest}
 import akka.http.scaladsl.unmarshalling.{Unmarshaller, Unmarshal}
 import akka.stream.Materializer
@@ -45,7 +47,7 @@ object MarathonRest extends Enumeration {
     MarathonRest.listApp->(s"/apps/%s", 14),
     MarathonRest.listAppConfig->(s"/apps/%d/versions/%d", 15),
     MarathonRest.listApps->(s"/apps", 16),
-    MarathonRest.listAppTasks->(s"/apps/%d/tasks", 17),
+    MarathonRest.listAppTasks->(s"/apps/%s/tasks", 17),
     MarathonRest.listAppVersion->(s"/apps/%d/versions", 18),
     MarathonRest.listDeployments->(s"/deployments", 19),
     MarathonRest.listGroup->(s"/groups/%d", 20),
@@ -63,10 +65,11 @@ object MarathonRest extends Enumeration {
   )
 }
 
-trait MClient extends MarathonApiProtocol
-{
+trait MClient extends MarathonApiProtocol {
   implicit val system: ActorSystem
+
   implicit def executor: ExecutionContextExecutor
+
   implicit val materializer: Materializer
 
   var host: String = null
@@ -79,9 +82,9 @@ trait MClient extends MarathonApiProtocol
   def marathonRequest(request: HttpRequest): Future[HttpResponse] =
     Source.single(request).via(connectionFlow).runWith(Sink.head)
 
-  def getUrl(template: String, parameters: Any*) =  {
+  def getUrl(template: String, parameters: Any*) = {
     var url = s"/$version$template"
-    url = url.format(parameters : _*)
+    url = url.format(parameters: _*)
     println(url)
     url
   }
@@ -91,39 +94,47 @@ trait MClient extends MarathonApiProtocol
   // get calls
   //
 
-  def listApps() : Future[Either[String, Apps]] = {
+  def listApps(): Future[Either[String, Apps]] = {
     getStuff[Apps](MarathonRest.listApps)
   }
 
-  def listApp(appId: String) : Future[Either[String, App2]] = {
+  def listApp(appId: String): Future[Either[String, App2]] = {
     getStuff[App2](MarathonRest.listApp, appId)
   }
 
-  def getLeader() : Future[Either[String, Leader]] = {
+  def getLeader(): Future[Either[String, Leader]] = {
     getStuff[Leader](MarathonRest.getLeader)
   }
 
-  def listDeployments() : Future[Either[String, Deployment]] = {
+  def listDeployments(): Future[Either[String, Deployment]] = {
     getStuff[Deployment](MarathonRest.listDeployments)
   }
 
-/*
+  def listTasks(): Future[Either[String, Tasks]] = {
+    getStuff[Tasks](MarathonRest.listTasks)
+  }
+
+
+  /*
   def listAppTasks() : Future[Either[String, Task]] = {
     getStuff[Task](MarathonRest.listAppTasks)
   }
 */
 
   def getStuff[R](op: MarathonRest.MarathonRest, params: Any*)
-                 (implicit um : Unmarshaller[ResponseEntity, R]) : Future[Either[String, R]] = {
+                 (implicit um: Unmarshaller[ResponseEntity, R]): Future[Either[String, R]] = {
 
     val (path, context) = MarathonRest.apiMap(op)
 
-    marathonRequest(RequestBuilding.Get(getUrl(path, params: _*)))
+    marathonRequest(
+      RequestBuilding
+        .Get(getUrl(path, params: _*))
+        .withHeaders(RawHeader("accept", "application/json")))
       .flatMap {
       response =>
         response.status match {
           case OK =>
-            // response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
+            //response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
             Unmarshal(response.entity).to[R].map(Right(_))
           case _ =>
             Unmarshal(response.entity).to[String].flatMap { entity =>

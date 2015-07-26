@@ -40,19 +40,25 @@ class MClientSpec
     //Manual disable/enable these test for now.
     val future = getStuff[Apps](MarathonRest.listApps)
     Await.result(future, 10 seconds)
-    assert(future.value.get.get.right.get.apps.length > 0)
-    assert(future.value.get.get.right.get.apps.filter(_.id == Some("/andrew")).length > 0)
+    assert(future.value.get.get.right.get.apps.get.length > 0)
+    assert(future.value.get.get.right.get.apps.get.filter(_.id == Some("/andrew")).length > 0)
   }
-/*
+
   "listApp" should "work" in {
     val future = listApp("/andrew")
     Await.result(future, 10 seconds)
-    assert(future.value.get.get.right.get.id == Some("/andrew"))
+    assert(future.value.get.get.right.get.app.id == Some("/andrew"))
   }
-*/
+
   "getLeader" should "work" in {
     val future = getStuff[Leader](MarathonRest.getLeader)
     Await.result(future, 10 seconds)
     assert(future.value.get.get.right.get.leader == Some("mesos:8080"))
+  }
+
+  "getTasks" should "work" in {
+    val future = getStuff[Task](MarathonRest.listTasks)
+    Await.result(future, 10 seconds)
+    assert(future.value.get.get.right.get.appId == Some("mesos:8080"))
   }
 }
