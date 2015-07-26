@@ -11,28 +11,38 @@ case class Constraint (
 )
 
 case class App (
-  id           : String,
+  id           : Option[String],
   cmd          : Option[String],
   env          : Option[Map[String, String]],
-  instances    : Int,
-  cpus         : Double,
-  mem          : Double,
+  instances    : Option[Int],
+  cpus         : Option[Double],
+  mem          : Option[Double],
   executor     : Option[String],
   constraints  : Option[List[Constraint]],
   uris         : Option[List[String]],
   ports        : Option[List[Int]],
-  requirePorts : Boolean,
+  requirePorts : Option[Boolean],
   container    : Option[Container],
-  backoffSeconds : Int,
-  backoffFactor  : Double,
-  maxLaunchDelaySeconds : Int
+  backoffSeconds : Option[Int],
+  backoffFactor  : Option[Double],
+  maxLaunchDelaySeconds : Option[Int]
 )
 
-case class Apps(apps: List[App])
+case class App2 (app: App)
+
+case class Apps(apps: Option[List[App]])
+
+case class Leader(leader: Option[String])
+
+case class Deployment(id: Option[String])
 
 trait MarathonApiProtocol extends DefaultJsonProtocol {
   implicit val containerFormat = jsonFormat2(Container.apply)
   implicit val constraintFormat = jsonFormat3(Constraint.apply)
   implicit val appFormat = jsonFormat15(App.apply)
+  implicit val app2Format = jsonFormat1(App2.apply)
   implicit val appsFormat = jsonFormat1(Apps.apply)
+  implicit val leaderFormat = jsonFormat1(Leader.apply)
+  implicit val deploymentFormat = jsonFormat1(Deployment.apply)
+  implicit val deploymentsFormat = listFormat(deploymentFormat)
 }

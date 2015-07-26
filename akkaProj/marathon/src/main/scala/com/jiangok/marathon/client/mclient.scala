@@ -5,12 +5,15 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.{HttpResponse, HttpRequest}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.{ResponseEntity, HttpResponse, HttpRequest}
+import akka.http.scaladsl.unmarshalling.{Unmarshaller, Unmarshal}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source, Flow}
+import com.jiangok.marathon.client.MarathonRest.MarathonRest
 import scala.collection.immutable.HashMap
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+
+// MUST have for marshalling
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import scala.concurrent.duration._
@@ -39,7 +42,7 @@ object MarathonRest extends Enumeration {
     MarathonRest.killAppTask->(s"/apps/%d/tasks/%d", 11),
     MarathonRest.killAppTasks->(s"/apps/%d/tasks", 12),
     MarathonRest.killTasks->(s"/tasks/delete", 13),
-    MarathonRest.listApp->(s"/apps/%d", 14),
+    MarathonRest.listApp->(s"/apps/%s", 14),
     MarathonRest.listAppConfig->(s"/apps/%d/versions/%d", 15),
     MarathonRest.listApps->(s"/apps", 16),
     MarathonRest.listAppTasks->(s"/apps/%d/tasks", 17),
@@ -76,21 +79,56 @@ trait MClient extends MarathonApiProtocol
   def marathonRequest(request: HttpRequest): Future[HttpResponse] =
     Source.single(request).via(connectionFlow).runWith(Sink.head)
 
-  def listApps() : Future[Either[String, Apps]] = {
-    val (path, context) = MarathonRest.apiMap(MarathonRest.listApps)
-    val url =  s"/${version}$path"
+  def getUrl(template: String, parameters: Any*) =  {
+    var url = s"/$version$template"
+    url = url.format(parameters : _*)
+    println(url)
+    url
+  }
 
-    marathonRequest(RequestBuilding.Get(url))
+
+  //
+  // get calls
+  //
+
+  def listApps() : Future[Either[String, Apps]] = {
+    getStuff[Apps](MarathonRest.listApps)
+  }
+
+  def listApp(appId: String) : Future[Either[String, App2]] = {
+    getStuff[App2](MarathonRest.listApp, appId)
+  }
+
+  def getLeader() : Future[Either[String, Leader]] = {
+    getStuff[Leader](MarathonRest.getLeader)
+  }
+
+  def listDeployments() : Future[Either[String, Deployment]] = {
+    getStuff[Deployment](MarathonRest.listDeployments)
+  }
+
+/*
+  def listAppTasks() : Future[Either[String, Task]] = {
+    getStuff[Task](MarathonRest.listAppTasks)
+  }
+*/
+
+  def getStuff[R](op: MarathonRest.MarathonRest, params: Any*)
+                 (implicit um : Unmarshaller[ResponseEntity, R]) : Future[Either[String, R]] = {
+
+    val (path, context) = MarathonRest.apiMap(op)
+
+    marathonRequest(RequestBuilding.Get(getUrl(path, params: _*)))
       .flatMap {
-        response =>
-          response.status match {
-            case OK =>
-              // response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
-              Unmarshal(response.entity).to[Apps].map(Right(_))
-            case _ =>
-              Unmarshal(response.entity).to[String].flatMap { entity =>
-                val error = s"marathon request failed with status code ${response.status} and entity $entity"
-                Future.failed(new IOException(error))
+      response =>
+        response.status match {
+          case OK =>
+            // response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
+            Unmarshal(response.entity).to[R].map(Right(_))
+          case _ =>
+            Unmarshal(response.entity).to[String].flatMap { entity =>
+              val error = s"marathon request failed with status code ${response.status} and entity $entity"
+              Future.failed(new IOException(error))
             }
         }
     }

@@ -13,7 +13,7 @@ final object GameStarted extends State
 
 class PingpongActor(playerName: String) extends FSM[State, Any] {
   import scala.concurrent.duration._
-  //import PingpongApp.system.dispatcher // required for scheduleOnce
+  import PingpongApp.system.dispatcher // required for scheduleOnce
 
   startWith(Disconnected, null)
 
@@ -60,4 +60,11 @@ object PingpongApp extends App {
   //andrew ! "startGame"
 
   println("hi")
+
+  val stackTrace = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(new Throwable())
+  val stackFrames : Array[String] = org.apache.commons.lang3.exception.ExceptionUtils.getStackFrames(new Throwable())
+
+  println(s"stackTrace: $stackTrace")
+  println(s"stackFrames:")
+  stackFrames.map(println)
 }

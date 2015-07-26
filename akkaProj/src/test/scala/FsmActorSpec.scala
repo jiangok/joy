@@ -31,8 +31,8 @@ class FsmActorSpec(_system: ActorSystem)
   }
 
   "An FsmActor" should "go to initialized state when initialized" in {
-    assert(fsm.stateName == Uninitialized)
 
+    assert(fsm.stateName == Uninitialized)
     fsm ! Initialize
 
     assert(fsm.stateName == Initialized)

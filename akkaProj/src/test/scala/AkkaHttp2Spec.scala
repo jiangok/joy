@@ -14,6 +14,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
+// this makes the compile OBVIOUSLY slower
+// also it has trouble to deserialize marathon /v2/apps api return
 import fommil.sjs.FamilyFormats._
 
 class AkkaHttp2Spec

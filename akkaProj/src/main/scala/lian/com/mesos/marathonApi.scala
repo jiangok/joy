@@ -8,9 +8,11 @@ package com.lian.mesos
 import java.util.concurrent.Executors
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer}
+import com.jiangok.marathon.client.{Leader, MarathonRest, Apps}
 import scala.concurrent._
 import scala.concurrent.duration._
 import com.jiangok.marathon.{ client => mc }
+//import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 
 /**
@@ -25,7 +27,8 @@ object MarathonApi extends App with mc.MClient {
   implicit def executor: ExecutionContextExecutor =
     ExecutionContext.fromExecutorService(executionService)
 
-  val url = new java.net.URL(args(0))
+  var argInd = 0
+  val url = new java.net.URL(args(argInd)); argInd += 1
 
   url match {
     case UrlParser(_protocol, _host, _port, _path) =>
@@ -33,17 +36,24 @@ object MarathonApi extends App with mc.MClient {
       port = _port
   }
 
-  val command = args(1)
+  val command = args(argInd); argInd += 1
   command match {
     case "createApp" =>
 
     case "listApps" =>
       val f = listApps()
       Await.ready(f, 10 seconds)
-      println(f.value.get.get.right.get.apps(0).id)
+      println(f.value.get.get.right.get.apps.get(0).id)
 
     case "listApp" =>
+      // ex: run-main com.lian.mesos.MarathonApi http://10.141.141.10:8080/ listApp /andrew
+      val appId = args(argInd); argInd += 1
+      val f = listApp(appId)
+      Await.ready(f, 10 seconds)
+      println(f.value.get.get.right.get.app.id)
+
     case "listAppVersion" =>
+
     case "listAppConfig" =>
     case "changeAppConfig" =>
     case "rollingRestartAppTasks" =>
@@ -66,7 +76,13 @@ object MarathonApi extends App with mc.MClient {
     case "unsubscribEvents" =>
     case "listStagingQueue" =>
     case "getMarathonInst" =>
+
+
     case "getLeader" =>
+      val f = getLeader()
+      Await.result(f, 10 seconds)
+      println(f.value.get.get.right.get.leader)
+
     case "reelectLeader" =>
     case "ping" =>
     case "logging" =>
