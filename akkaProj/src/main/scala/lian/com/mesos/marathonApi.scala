@@ -52,16 +52,29 @@ object MarathonApi extends App with mc.MClient {
       Await.ready(f, 10 seconds)
       println(f.value.get.get.right.get.app.id)
 
-    case "listAppVersion" =>
+    case "listVersions" =>
+      val appId = args(argInd); argInd += 1
+      val f = listVersions(appId)
+      Await.ready(f, 10 seconds)
+      f.value.get.get.right.get.versions.get.foreach(println)
 
     case "listAppConfig" =>
     case "changeAppConfig" =>
-    case "rollingRestartAppTasks" =>
+    case "restartApp" =>
+      val appId = args(argInd); argInd += 1
+      val f = restartApp(appId)
+      Await.ready(f, 10 seconds)
+      println(f.value.get.get.right.get.toString)
+
     case "destroyApp" =>
     case "listAppTasks" =>
     case "killAppTasks" =>
     case "killAppTask" =>
     case "listGroups" =>
+      val f = listGroups()
+      Await.ready(f, 10 seconds)
+      println(f.value.get.get.right.get.id.get)
+
     case "listGroup" =>
     case "createGroups" =>
     case "changeGroup" =>
@@ -89,6 +102,10 @@ object MarathonApi extends App with mc.MClient {
 
     case "reelectLeader" =>
     case "ping" =>
+      val f = ping()
+      Await.result(f, 10 seconds)
+      println(f.value.get.get.right.get)
+
     case "logging" =>
     case "help" =>
     case "metrics" =>

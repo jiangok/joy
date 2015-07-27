@@ -40,6 +40,12 @@ case class Task(appId: Option[String])
 
 case class Tasks(tasks: Option[List[Task]])
 
+case class Versions(versions: Option[List[String]])
+
+case class RestartAppResponse(deploymentId: Option[String], version: Option[String])
+
+case class Groups(id: Option[String], apps: List[App], version: Option[String])
+
 trait MarathonApiProtocol extends DefaultJsonProtocol {
   implicit val containerFormat = jsonFormat2(Container.apply)
   implicit val constraintFormat = jsonFormat3(Constraint.apply)
@@ -51,4 +57,7 @@ trait MarathonApiProtocol extends DefaultJsonProtocol {
   implicit val deploymentFormat = jsonFormat1(Deployment.apply)
   implicit val deploymentsFormat = listFormat(deploymentFormat)
   implicit val tasksFormat = jsonFormat1(Tasks.apply)
+  implicit val versionsFormat = jsonFormat1(Versions.apply)
+  implicit val restartAppResponseFormat = jsonFormat2(RestartAppResponse.apply)
+  implicit val groupsFormat = jsonFormat3(Groups.apply)
 }

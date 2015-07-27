@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 object MarathonRest extends Enumeration {
   type MarathonRest = Value
-  val createApp, listApps, listApp, listAppVersion, listAppConfig, changeAppConfig, rollingRestartAppTasks,
+  val createApp, listApps, listApp, listVersions, listAppConfig, changeAppConfig, restartApp,
   destroyApp,  listAppTasks, killAppTasks, killAppTask, listGroups, listGroup, createGroups, changeGroup,
   destroyGroup, listTasks, killTasks, listDeployments, deleteDeployment, attachEventStream, subscribEvents,
   listSubscriptions, unsubscribEvents, listStagingQueue, getMarathonInst, getLeader, reelectLeader,
@@ -48,7 +48,7 @@ object MarathonRest extends Enumeration {
     MarathonRest.listAppConfig->(s"/apps/%d/versions/%d", 15),
     MarathonRest.listApps->(s"/apps", 16),
     MarathonRest.listAppTasks->(s"/apps/%s/tasks", 17),
-    MarathonRest.listAppVersion->(s"/apps/%d/versions", 18),
+    MarathonRest.listVersions->(s"/apps/%s/versions", 18),
     MarathonRest.listDeployments->(s"/deployments", 19),
     MarathonRest.listGroup->(s"/groups/%d", 20),
     MarathonRest.listGroups->(s"/groups", 21),
@@ -59,7 +59,7 @@ object MarathonRest extends Enumeration {
     MarathonRest.metrics->(s"/metrics", 26),
     MarathonRest.ping->(s"/ping", 27),
     MarathonRest.reelectLeader->(s"/leader", 28),
-    MarathonRest.rollingRestartAppTasks->(s"/apps/%d/restart", 29),
+    MarathonRest.restartApp->(s"/apps/%s/restart", 29),
     MarathonRest.subscribEvents->(s"/eventSubscriptions", 30),
     MarathonRest.unsubscribEvents->(s"/eventSubscriptions", 31)
   )
@@ -82,8 +82,15 @@ trait MClient extends MarathonApiProtocol {
   def marathonRequest(request: HttpRequest): Future[HttpResponse] =
     Source.single(request).via(connectionFlow).runWith(Sink.head)
 
-  def getUrl(template: String, parameters: Any*) = {
+  def getVersionedUrl(template: String, parameters: Any*) = {
     var url = s"/$version$template"
+    url = url.format(parameters: _*)
+    println(url)
+    url
+  }
+
+  def getUrl(template: String, parameters: Any*) = {
+    var url = s"$template"
     url = url.format(parameters: _*)
     println(url)
     url
@@ -114,21 +121,74 @@ trait MClient extends MarathonApiProtocol {
     getStuff[Tasks](MarathonRest.listTasks)
   }
 
+  def listVersions(appId: String) : Future[Either[String, Versions]] = {
+    getStuff[Versions](MarathonRest.listVersions, appId)
+  }
+
+  def listGroups() : Future[Either[String, Groups]] = {
+    getStuff[Groups](MarathonRest.listGroups)
+  }
+
+  def ping() : Future[Either[String, String]] = {
+    val (path, context) = MarathonRest.apiMap(MarathonRest.ping)
+    getStuff[String](getUrl(path))
+  }
 
   /*
-  def listAppTasks() : Future[Either[String, Task]] = {
-    getStuff[Task](MarathonRest.listAppTasks)
-  }
-*/
+  // very complicate schema
+  def metrics() : Future[Either[String, String]] = {
+    val (path, context) = MarathonRest.apiMap(MarathonRest.ping)
+    getStuff[String](getUrl(path))
+  }*/
 
   def getStuff[R](op: MarathonRest.MarathonRest, params: Any*)
+  (implicit um: Unmarshaller[ResponseEntity, R]): Future[Either[String, R]] =
+  {
+    val (path, context) = MarathonRest.apiMap(op)
+
+    getStuff[R](getVersionedUrl(path, params: _*))
+  }
+
+  def getStuff[R](url: String)
+                 (implicit um: Unmarshaller[ResponseEntity, R]): Future[Either[String, R]] = {
+
+    marathonRequest(
+      RequestBuilding
+        .Get(url)
+        .withHeaders(RawHeader("accept", "application/json")))
+      .flatMap {
+      response =>
+        response.status match {
+          case OK =>
+            //response.entity.dataBytes.runForeach(bs => println("!!!!!!" + bs.decodeString("utf-8")))
+            Unmarshal(response.entity).to[R].map(Right(_))
+          case _ =>
+            Unmarshal(response.entity).to[String].flatMap { entity =>
+              val error = s"marathon request failed with status code ${response.status} and entity $entity"
+              Future.failed(new IOException(error))
+            }
+        }
+    }
+  }
+
+
+  //
+  // post calls
+  //
+
+  def restartApp(appId: String) = {
+    postStuff[RestartAppResponse](MarathonRest.restartApp, appId)
+  }
+
+
+  def postStuff[R](op: MarathonRest.MarathonRest, params: Any*)
                  (implicit um: Unmarshaller[ResponseEntity, R]): Future[Either[String, R]] = {
 
     val (path, context) = MarathonRest.apiMap(op)
 
     marathonRequest(
       RequestBuilding
-        .Get(getUrl(path, params: _*))
+        .Post(getUrl(path, params: _*))
         .withHeaders(RawHeader("accept", "application/json")))
       .flatMap {
       response =>
