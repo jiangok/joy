@@ -1,6 +1,6 @@
 import scalaz.stream.Process
 
-object testApp extends App {
+object scalazStream_process extends App {
 
   println("testApp started")
 

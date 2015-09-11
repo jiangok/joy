@@ -43,13 +43,3 @@ echo "deb http://repos.mesosphere.io/${DISTRO} ${CODENAME} main" | tee /etc/apt/
 # otherwise, the command looks stuck since it takes long time.
 apt-get update
 
-function getIP() {
-    # below return something like addr:10.141.141.10
-    ip=$(ifconfig eth1 | grep inet | grep -v inet6 | awk '{print $2}')
-
-    # below replace : with space and convert the string into an array
-    arr=(${ip//:/ })
-
-    # below return 1 (the second 1) element starting from index 1 (the first 1)
-    echo ${arr[@]:1:1}
-}
